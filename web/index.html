@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Distributed Calculator</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+        input {
+            padding: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 5px 10px;
+        }
+        #result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Distributed Calculator</h1>
+    <div>
+        <input type="text" id="expression" placeholder="Enter expression (e.g., 2 + 3)">
+        <button onclick="calculateAndWait()">Calculate & Wait</button>
+    </div>
+    <div id="result">
+        <p>Status: <span id="status">Waiting...</span></p>
+        <p>Result: <span id="result-value">N/A</span></p>
+    </div>
+</div>
+<script>
+    async function calculateAndWait() {
+        const expression = document.getElementById('expression').value;
+        if (!expression) {
+            alert('Please enter an expression!');
+            return;
+        }
+
+        // Сбрасываем UI
+        document.getElementById('status').textContent = 'Pending';
+        document.getElementById('result-value').textContent = 'N/A';
+
+        try {
+            // Шаг 1: Отправляем выражение
+            console.log('Sending expression:', expression);
+            const response = await fetch('http://localhost:8080/api/v1/calculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expression })
+            });
+
+            if (response.status !== 201) {
+                const errorText = await response.text();
+                console.error('Failed to calculate:', response.status, errorText);
+                alert(`Error: ${response.status} - ${errorText}`);
+                return;
+            }
+
+            const data = await response.json();
+            const expressionId = data.id;
+            console.log('Assigned ID:', expressionId);
+
+            // Шаг 2: Ждём результата
+            let status = 'pending';
+            let result = null;
+            while (status === 'pending') {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Ждём 1 секунду
+                console.log('Checking status for ID:', expressionId);
+                const statusResponse = await fetch(`http://localhost:8080/api/v1/expressions/${expressionId}`);
+                if (!statusResponse.ok) {
+                    console.error(`Check status error: ${statusResponse.status} - ${await statusResponse.text()}`);
+                    alert('Failed to get status!');
+                    return;
+                }
+
+                const statusData = await statusResponse.json();
+                console.log('Raw response:', statusData);
+
+                if (statusData.expression) {
+                    status = statusData.expression.status;
+                    result = statusData.expression.result;
+                } else if (statusData.expressions && statusData.expressions.length > 0) {
+                    status = statusData.expressions[0].Status;
+                    result = statusData.expressions[0].Result;
+                } else {
+                    console.error('Invalid response format:', statusData);
+                    alert('Invalid response format from server');
+                    return;
+                }
+
+                console.log('Current status:', status, 'Result:', result);
+            }
+
+            // Шаг 3: Обновляем UI
+            console.log('Updating UI - Status:', status, 'Result:', result);
+            if (status) {
+                document.getElementById('status').textContent = status;
+            } else {
+                document.getElementById('status').textContent = 'Unknown';
+                console.error('Status is undefined');
+            }
+
+            if (result !== null && result !== undefined) {
+                document.getElementById('result-value').textContent = result.toString();
+            } else {
+                document.getElementById('result-value').textContent = 'N/A';
+                console.error('Result is null or undefined');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to process request!');
+        }
+    }
+</script>
+</body>
+</html>
