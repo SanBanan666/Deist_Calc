@@ -1,11 +1,12 @@
 package main
 
 import (
-	"distributed-calculator/internal/orchestrator"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"distributed-calculator/internal/orchestrator"
 )
 
 func main() {

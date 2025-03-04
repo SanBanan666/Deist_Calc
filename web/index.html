@@ -25,7 +25,7 @@
 <div class="container">
     <h1>Distributed Calculator</h1>
     <div>
-        <input type="text" id="expression" placeholder="Enter expression (e.g., 2 + 3)">
+        <input type="text" id="expression" placeholder="Enter expression (e.g., 2 + 2 * 2)">
         <button onclick="calculateAndWait()">Calculate & Wait</button>
     </div>
     <div id="result">
@@ -41,12 +41,10 @@
             return;
         }
 
-        // Сбрасываем UI
         document.getElementById('status').textContent = 'Pending';
         document.getElementById('result-value').textContent = 'N/A';
 
         try {
-            // Шаг 1: Отправляем выражение
             console.log('Sending expression:', expression);
             const response = await fetch('http://localhost:8080/api/v1/calculate', {
                 method: 'POST',
@@ -65,11 +63,10 @@
             const expressionId = data.id;
             console.log('Assigned ID:', expressionId);
 
-            // Шаг 2: Ждём результата
             let status = 'pending';
             let result = null;
             while (status === 'pending') {
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Ждём 1 секунду
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 console.log('Checking status for ID:', expressionId);
                 const statusResponse = await fetch(`http://localhost:8080/api/v1/expressions/${expressionId}`);
                 if (!statusResponse.ok) {
@@ -85,8 +82,8 @@
                     status = statusData.expression.status;
                     result = statusData.expression.result;
                 } else if (statusData.expressions && statusData.expressions.length > 0) {
-                    status = statusData.expressions[0].Status;
-                    result = statusData.expressions[0].Result;
+                    status = statusData.expressions[0].status || statusData.expressions[0].Status;
+                    result = statusData.expressions[0].result || statusData.expressions[0].Result;
                 } else {
                     console.error('Invalid response format:', statusData);
                     alert('Invalid response format from server');
@@ -96,21 +93,9 @@
                 console.log('Current status:', status, 'Result:', result);
             }
 
-            // Шаг 3: Обновляем UI
             console.log('Updating UI - Status:', status, 'Result:', result);
-            if (status) {
-                document.getElementById('status').textContent = status;
-            } else {
-                document.getElementById('status').textContent = 'Unknown';
-                console.error('Status is undefined');
-            }
-
-            if (result !== null && result !== undefined) {
-                document.getElementById('result-value').textContent = result.toString();
-            } else {
-                document.getElementById('result-value').textContent = 'N/A';
-                console.error('Result is null or undefined');
-            }
+            document.getElementById('status').textContent = status || 'Unknown';
+            document.getElementById('result-value').textContent = result !== null && result !== undefined ? result : 'N/A';
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to process request!');

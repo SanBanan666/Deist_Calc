@@ -18,18 +18,18 @@ type Handler struct {
 }
 
 type Expression struct {
-	ID     int
-	Status string
-	Result float64
-	Expr   string
+	ID     int     `json:"id"`
+	Status string  `json:"status"` // Изменяем на нижний регистр
+	Result float64 `json:"result"` // Изменяем на нижний регистр
+	Expr   string  `json:"expr"`
 }
 
 type Task struct {
-	ID            int
-	Arg1          float64
-	Arg2          float64
-	Operation     string
-	OperationTime int
+	ID            int     `json:"id"`
+	Arg1          float64 `json:"arg1"`
+	Arg2          float64 `json:"arg2"`
+	Operation     string  `json:"operation"`
+	OperationTime int     `json:"operation_time"`
 }
 
 func NewHandler() *Handler {
@@ -41,7 +41,6 @@ func NewHandler() *Handler {
 	}
 }
 
-// Экспортируем CorsMiddleware с большой буквы
 func (h *Handler) CorsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -98,6 +97,7 @@ func (h *Handler) GetExpressionByID(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/v1/expressions/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Printf("Invalid ID: %s", idStr)
 		http.Error(w, "Invalid ID", http.StatusNotFound)
 		return
 	}
@@ -107,10 +107,12 @@ func (h *Handler) GetExpressionByID(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 
 	if !exists {
+		log.Printf("Expression not found for ID: %d", id)
 		http.Error(w, "Expression not found", http.StatusNotFound)
 		return
 	}
 
+	log.Printf("Returning expression ID: %d, Result: %f", id, expr.Result)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]Expression{"expression": expr})
 }

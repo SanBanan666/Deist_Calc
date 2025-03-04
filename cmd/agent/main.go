@@ -1,14 +1,15 @@
 package main
 
 import (
-	"distributed-calculator/internal/agent"
 	"log"
 	"os"
 	"strconv"
+
+	"distributed-calculator/internal/agent"
 )
 
 func main() {
-	os.Setenv("COMPUTING_POWER", "3") // 3 горутины по умолчанию
+	os.Setenv("COMPUTING_POWER", "3")
 	power, _ := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
 
 	for i := 0; i < power; i++ {
@@ -16,5 +17,5 @@ func main() {
 	}
 
 	log.Println("Agent started with", power, "workers")
-	select {} // Бесконечный цикл
+	select {}
 }

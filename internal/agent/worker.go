@@ -31,9 +31,9 @@ func RunWorker() {
 		resp.Body.Close()
 
 		task := data.Task
-		log.Printf("Agent received task: %+v\n", task) // Отладка
+		log.Printf("Agent received task: %+v\n", task)
 		result := compute(task)
-		log.Printf("Agent computed result: %f\n", result) // Отладка
+		log.Printf("Agent computed result: %f for task ID: %d\n", result, task.ID)
 		sendResult(task.ID, result)
 	}
 }
@@ -65,4 +65,5 @@ func sendResult(id int, result float64) {
 		return
 	}
 	resp.Body.Close()
+	log.Printf("Sent result for task ID: %d, Result: %f\n", id, result)
 }
