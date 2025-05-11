@@ -2,20 +2,16 @@ package main
 
 import (
 	"log"
-	"os"
-	"strconv"
 
-	"distributed-calculator/internal/agent"
+	"Deist_Calc/internal/agent"
 )
 
 func main() {
-	os.Setenv("COMPUTING_POWER", "3")
-	power, _ := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
-
-	for i := 0; i < power; i++ {
-		go agent.RunWorker()
+	worker, err := agent.NewWorker("localhost:50051")
+	if err != nil {
+		log.Fatalf("Ошибка создания воркера: %v", err)
 	}
 
-	log.Println("Agent started with", power, "workers")
-	select {}
+	log.Println("Агент запущен и готов к работе")
+	worker.Start()
 }

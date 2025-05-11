@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "Deist_Calc/internal/proto";
+
+service CalculatorService {
+  rpc Calculate (CalculateRequest) returns (CalculateResponse) {}
+  rpc GetExpressions (GetExpressionsRequest) returns (GetExpressionsResponse) {}
+  rpc GetTask (GetTaskRequest) returns (Task) {}
+  rpc UpdateTask (UpdateTaskRequest) returns (UpdateTaskResponse) {}
+}
+
+message CalculateRequest {
+  string expression = 1;
+  string user_id = 2;
+}
+
+message CalculateResponse {
+  string result = 1;
+  string error = 2;
+}
+
+message GetExpressionsRequest {
+  string user_id = 1;
+}
+
+message Expression {
+  string id = 1;
+  string expression = 2;
+  string result = 3;
+  string status = 4;
+  string created_at = 5;
+}
+
+message GetExpressionsResponse {
+  repeated Expression expressions = 1;
+}
+
+message Task {
+  string id = 1;
+  string expression = 2;
+  string user_id = 3;
+  string status = 4;
+  string result = 5;
+}
+
+message GetTaskRequest {}
+
+message UpdateTaskRequest {
+  string task_id = 1;
+  string result = 2;
+}
+
+message UpdateTaskResponse {
+  bool success = 1;
+} 

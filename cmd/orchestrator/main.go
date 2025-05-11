@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"distributed-calculator/internal/orchestrator"
+	"Deist_Calc/internal/orchestrator"
 )
 
 func main() {

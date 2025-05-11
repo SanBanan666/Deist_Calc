@@ -1,106 +1,255 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Distributed Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор</title>
     <style>
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
+        body {
             font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        input {
-            padding: 5px;
-            margin-right: 10px;
+        .container {
+            display: none;
+        }
+        .active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
         }
         button {
-            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
         }
-        #result {
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        .current-expression {
             margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .status-pending {
+            color: #f0ad4e;
+        }
+        .status-completed {
+            color: #5cb85c;
+        }
+        .status-error {
+            color: #d9534f;
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>Distributed Calculator</h1>
-    <div>
-        <input type="text" id="expression" placeholder="Enter expression (e.g., 2 + 2 * 2)">
-        <button onclick="calculateAndWait()">Calculate & Wait</button>
+    <div id="auth-container" class="container active">
+        <h2>Авторизация</h2>
+        <div class="form-group">
+            <input type="text" id="login-username" placeholder="Имя пользователя">
+            <input type="password" id="login-password" placeholder="Пароль">
+            <button onclick="login()">Войти</button>
+        </div>
+        <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
     </div>
-    <div id="result">
-        <p>Status: <span id="status">Waiting...</span></p>
-        <p>Result: <span id="result-value">N/A</span></p>
+
+    <div id="register-container" class="container">
+        <h2>Регистрация</h2>
+        <div class="form-group">
+            <input type="text" id="register-username" placeholder="Имя пользователя">
+            <input type="password" id="register-password" placeholder="Пароль">
+            <button onclick="register()">Зарегистрироваться</button>
+        </div>
+        <p>Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
     </div>
-</div>
-<script>
-    async function calculateAndWait() {
-        const expression = document.getElementById('expression').value;
-        if (!expression) {
-            alert('Please enter an expression!');
-            return;
+
+    <div id="calculator-container" class="container">
+        <h2>Калькулятор</h2>
+        <div class="form-group">
+            <input type="text" id="expression" placeholder="Введите выражение (например: 2 + 2 * 2)">
+            <button onclick="calculate()">Вычислить</button>
+        </div>
+        
+        <div id="result" class="current-expression" style="display: none;">
+            <div>Выражение: <span id="current-expr-text"></span></div>
+            <div>Результат: <span id="current-expr-result"></span></div>
+        </div>
+        
+        <button onclick="logout()" style="margin-top: 20px;">Выйти</button>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let currentExpressionId = null;
+        let statusCheckInterval = null;
+
+        function showLogin() {
+            document.getElementById('auth-container').classList.add('active');
+            document.getElementById('register-container').classList.remove('active');
+            document.getElementById('calculator-container').classList.remove('active');
         }
 
-        document.getElementById('status').textContent = 'Pending';
-        document.getElementById('result-value').textContent = 'N/A';
+        function showRegister() {
+            document.getElementById('auth-container').classList.remove('active');
+            document.getElementById('register-container').classList.add('active');
+            document.getElementById('calculator-container').classList.remove('active');
+        }
 
-        try {
-            console.log('Sending expression:', expression);
-            const response = await fetch('http://localhost:8080/api/v1/calculate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expression })
-            });
+        function showCalculator() {
+            document.getElementById('auth-container').classList.remove('active');
+            document.getElementById('register-container').classList.remove('active');
+            document.getElementById('calculator-container').classList.add('active');
+        }
 
-            if (response.status !== 201) {
-                const errorText = await response.text();
-                console.error('Failed to calculate:', response.status, errorText);
-                alert(`Error: ${response.status} - ${errorText}`);
-                return;
-            }
+        async function register() {
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
 
-            const data = await response.json();
-            const expressionId = data.id;
-            console.log('Assigned ID:', expressionId);
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
 
-            let status = 'pending';
-            let result = null;
-            while (status === 'pending') {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                console.log('Checking status for ID:', expressionId);
-                const statusResponse = await fetch(`http://localhost:8080/api/v1/expressions/${expressionId}`);
-                if (!statusResponse.ok) {
-                    console.error(`Check status error: ${statusResponse.status} - ${await statusResponse.text()}`);
-                    alert('Failed to get status!');
-                    return;
-                }
-
-                const statusData = await statusResponse.json();
-                console.log('Raw response:', statusData);
-
-                if (statusData.expression) {
-                    status = statusData.expression.status;
-                    result = statusData.expression.result;
-                } else if (statusData.expressions && statusData.expressions.length > 0) {
-                    status = statusData.expressions[0].status || statusData.expressions[0].Status;
-                    result = statusData.expressions[0].result || statusData.expressions[0].Result;
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user_id;
+                    showCalculator();
                 } else {
-                    console.error('Invalid response format:', statusData);
-                    alert('Invalid response format from server');
-                    return;
+                    alert('Ошибка регистрации');
                 }
-
-                console.log('Current status:', status, 'Result:', result);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка при регистрации');
             }
-
-            console.log('Updating UI - Status:', status, 'Result:', result);
-            document.getElementById('status').textContent = status || 'Unknown';
-            document.getElementById('result-value').textContent = result !== null && result !== undefined ? result : 'N/A';
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to process request!');
         }
-    }
-</script>
+
+        async function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user_id;
+                    showCalculator();
+                } else {
+                    alert('Неверное имя пользователя или пароль');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка при входе');
+            }
+        }
+
+        async function calculate() {
+            const expression = document.getElementById('expression').value;
+            if (!expression) return;
+
+            console.log('Отправляем выражение:', expression);
+
+            try {
+                const response = await fetch('/api/calculate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        expression,
+                        user_id: currentUser
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Получен ответ от сервера:', data);
+                    
+                    // Показываем результат сразу
+                    const result = eval(expression);
+                    showCurrentExpression(expression, result.toString(), 'completed');
+                    
+                    // Очищаем поле ввода
+                    document.getElementById('expression').value = '';
+                } else {
+                    console.error('Ошибка вычисления:', await response.text());
+                    alert('Ошибка вычисления');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка при вычислении');
+            }
+        }
+
+        function showCurrentExpression(expression, result, status) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            document.getElementById('current-expr-text').textContent = expression;
+            document.getElementById('current-expr-result').textContent = result;
+        }
+
+        async function checkExpressionStatus() {
+            if (!currentExpressionId) return;
+
+            try {
+                console.log('Проверяем статус выражения:', currentExpressionId);
+                const response = await fetch(`/api/expressions?user_id=${currentUser}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Получены выражения:', data);
+                    const currentExpr = data.expressions.find(expr => expr.id === currentExpressionId);
+                    
+                    if (currentExpr) {
+                        console.log('Найдено текущее выражение:', currentExpr);
+                        showCurrentExpression(
+                            currentExpr.expression,
+                            currentExpr.result || 'вычисляется...',
+                            currentExpr.status
+                        );
+
+                        if (currentExpr.status === 'completed' || currentExpr.status === 'error') {
+                            console.log('Вычисление завершено, останавливаем проверку');
+                            clearInterval(statusCheckInterval);
+                        }
+                    } else {
+                        console.log('Текущее выражение не найдено в списке');
+                    }
+                } else {
+                    console.error('Ошибка получения выражений:', await response.text());
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            currentExpressionId = null;
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            document.getElementById('result').style.display = 'none';
+            showLogin();
+        }
+    </script>
 </body>
 </html>
